@@ -88,9 +88,24 @@ if page == "Customer Sales":
 
 if page == "Payment Splits":
     st.markdown( "<h1 style='text-align: center;'>Sales Dashboard</h1>",unsafe_allow_html=True)
+    kpi_query = """SELECT SUM(gross_sales) AS total_sales,SUM(received_amount) AS total_received,SUM(pending_amount) AS total_pending,COUNT(*) AS total_transactions
+    FROM customer_sales;"""
+
+    kpi_df = pd.read_sql(kpi_query, conn)
+    pending_percentage = (kpi_df["total_pending"][0] /kpi_df["total_sales"][0]) * 100
+
+    st.metric("📉 Pending Collection %",f"{pending_percentage:.2f}%")
     query = """SELECT * FROM payment_splits"""
     df = pd.read_sql(query, conn)
     st.dataframe(df)
+    payment_query = """SELECT payment_method,SUM(amount_paid) AS total_collection FROM payment_splits
+    GROUP BY payment_method ORDER BY total_collection DESC;"""
+
+    payment_df = pd.read_sql(payment_query, conn)
+
+    st.subheader("💳 Payment Method Analysis")
+    chart_data = payment_df.set_index("payment_method")
+    st.bar_chart(chart_data["total_collection"])
     
 if page=="Add Customer form":
     st.markdown( "<h1 style='text-align: center;'>Sales Dashboard</h1>",unsafe_allow_html=True)
