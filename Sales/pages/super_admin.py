@@ -89,7 +89,48 @@ if page == "Customer Sales":
 
     st.divider()
 
-    edited_df = st.dataframe(filtered_df)
+    edited_df = st.dataframe(filtered_df)    
+    trend_query = """SELECT YEAR([date]) AS sales_year,MONTH([date]) AS sales_month,SUM(gross_sales) AS monthly_sales FROM customer_sales
+    GROUP BY YEAR([date]),MONTH([date])ORDER BY sales_year, sales_month;"""
+    trend_df = pd.read_sql(trend_query, conn)
+    trend_df["period"] = (trend_df["sales_year"].astype(str)+ "-"+ trend_df["sales_month"].astype(str).str.zfill(2))
+    st.subheader("📈 Sales Trends & Growth Tracking")
+    trend_chart = trend_df.set_index("period")["monthly_sales"]
+    st.line_chart(trend_chart)
+
+    branch_query = """SELECT b.branch_name,COUNT(cs.sale_id) AS total_sales_count,SUM(cs.gross_sales) AS total_revenue,SUM(cs.received_amount) AS total_received,SUM(cs.pending_amount) AS total_pending,AVG(cs.gross_sales) AS avg_sale_value
+    FROM customer_sales cs INNER JOIN branches b ON cs.branch_id = b.branch_id GROUP BY b.branch_name ORDER BY total_revenue DESC;"""
+    branch_df = pd.read_sql(branch_query, conn)
+    st.subheader("🏢 Branch Revenue Comparison")
+    branch_chart = branch_df.set_index("branch_name")["total_revenue"]
+    st.bar_chart(branch_chart)
+
+if page == "Payment Splits":
+    st.markdown( "<h1 style='text-align: center;'>Sales Dashboard</h1>",unsafe_allow_html=True)
+    kpi_query = """SELECT SUM(gross_sales) AS total_sales,SUM(received_amount) AS total_received,SUM(pending_amount) AS total_pending,COUNT(*) AS total_transactions
+    FROM customer_sales;"""
+
+    kpi_df = pd.read_sql(kpi_query, conn)
+    pending_percentage = (kpi_df["total_pending"][0] /kpi_df["total_sales"][0]) * 100
+
+    st.metric("📉 Pending Collection %",f"{pending_percentage:.2f}%")
+    
+    query = """SELECT * FROM payment_splits"""
+    
+    df = pd.read_sql(query, conn)
+    
+    st.dataframe(df)
+    payment_query = """SELECT payment_method,SUM(amount_paid) AS total_collection FROM payment_splits
+    GROUP BY payment_method ORDER BY total_collection DESC;"""
+
+    payment_df = pd.read_sql(payment_query, conn)
+
+    st.subheader("💳 Payment Method Analysis")
+    chart_data = payment_df.set_index("payment_method")
+
+
+    st.bar_chart(chart_data["total_collection"])
+
 
 
 if page == "Payment Splits":
